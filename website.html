@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Health Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /*
+         * This Tailwind CSS is embedded directly for offline functionality.
+         * In a real-world production app, you'd typically compile a custom Tailwind build.
+         */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f0fdf4; /* Light green background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            max-width: 900px; /* Increased max-width for better layout */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        .section-title {
+            font-size: 1.75rem; /* Larger title */
+            font-weight: 700;
+            color: #16a34a; /* Green color */
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #4b5563;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.75rem; /* Rounded input fields */
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #22c55e; /* Green focus border */
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+        }
+        .btn {
+            padding: 0.85rem 1.5rem;
+            border-radius: 0.75rem; /* Rounded buttons */
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #22c55e; /* Green primary button */
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #16a34a; /* Darker green on hover */
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: #e0f2f7; /* Light blue secondary button */
+            color: #0891b2; /* Darker blue text */
+        }
+        .btn-secondary:hover {
+            background-color: #bae6fd; /* Lighter blue on hover */
+            transform: translateY(-1px);
+        }
+        video {
+            width: 100%;
+            max-width: 400px; /* Max width for video */
+            height: auto;
+            border-radius: 1rem;
+            background-color: #f3f4f6;
+            object-fit: cover;
+            margin: 0 auto; /* Center video */
+            display: block; /* Ensure it's a block element */
+        }
+        canvas {
+            display: none; /* Hidden by default, used for capturing */
+        }
+        #capturedImage {
+            width: 100%;
+            max-width: 400px; /* Max width for image */
+            height: auto;
+            border-radius: 1rem;
+            background-color: #f3f4f6;
+            object-fit: contain; /* Ensure image fits without cropping */
+            margin: 0 auto; /* Center image */
+            display: block; /* Ensure it's a block element */
+            border: 1px solid #d1d5db;
+        }
+        .result-box {
+            background-color: #ecfdf5; /* Very light green for results */
+            border: 1px solid #a7f3d0; /* Green border */
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #065f46; /* Dark green text */
+        }
+        .error-message {
+            color: #ef4444; /* Red for errors */
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        /* Responsive adjustments */
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row; /* Side-by-side on larger screens */
+                gap: 3rem;
+            }
+            .left-panel, .right-panel {
+                flex: 1;
+            }
+            .section-title {
+                text-align: left;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <h2 class="section-title">Leaf Image Analysis</h2>
+            <div class="flex flex-col items-center gap-4 mb-6">
+                <video id="webcamVideo" autoplay playsinline class="rounded-xl border border-gray-300"></video>
+                <canvas id="imageCanvas" class="hidden"></canvas>
+                <button id="captureButton" class="btn btn-primary w-full md:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586l-.354-.354A2 2 0 0012.828 3H7.172a2 2 0 00-1.414.586L4.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                    </svg>
+                    Capture Leaf Image
+                </button>
+                <img id="capturedImage" src="https://placehold.co/400x300/e0f2f7/0891b2?text=Captured+Image" alt="Captured Plant Leaf" class="rounded-xl border border-gray-300">
+                <p id="cameraStatus" class="error-message"></p>
+            </div>
+            <div class="flex justify-center">
+                <button id="analyzeImageButton" class="btn btn-secondary w-full md:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 000-1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414L3.293 3.293a1 1 0 011.414 0L10 8.586l5.293-5.293a1 1 0 011.414 0l.707.707a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414L16.707 9.707a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-9a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1zm0 4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    Analyze Leaf
+                </button>
+            </div>
+            <div id="leafAnalysisResult" class="result-box mt-6 hidden">
+                Leaf Health: Not analyzed yet.
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <h2 class="section-title">Sensor Data & Overall Health</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="input-group">
+                    <label for="humidity">Humidity (%)</label>
+                    <input type="number" id="humidity" placeholder="e.g., 60" min="0" max="100" class="rounded-lg" readonly>
+                </div>
+                <div class="input-group">
+                    <label for="temperature">Temperature (°C)</label>
+                    <input type="number" id="temperature" placeholder="e.g., 25" class="rounded-lg" readonly>
+                </div>
+                <div class="input-group col-span-full">
+                    <label for="soilMoisture">Soil Moisture (%)</label>
+                    <input type="number" id="soilMoisture" placeholder="e.g., 70" min="0" max="100" class="rounded-lg" readonly>
+                </div>
+            </div>
+            <div class="flex justify-center">
+                </div>
+            <div id="sensorAnalysisResult" class="result-box mt-6 hidden">
+                Soil Health: Not analyzed yet.
+            </div>
+            <div id="overallHealthResult" class="result-box mt-6 hidden">
+                Overall Plant Health: Not determined.
+            </div>
+            <div id="pumpStatusDisplay" class="result-box mt-4 hidden">
+                Pump Status: Unknown
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Service Worker registration removed as it's not supported in this environment.
+        // For true offline capability, you would need to host this on a web server (e.g., localhost)
+        // and implement a service worker there, ensuring all assets (including model files and CDNs)
+        // are correctly cached.
+
+        const webcamVideo = document.getElementById('webcamVideo');
+        const captureButton = document.getElementById('captureButton');
+        const imageCanvas = document.getElementById('imageCanvas');
+        const capturedImage = document.getElementById('capturedImage');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const analyzeImageButton = document.getElementById('analyzeImageButton'); // Fixed assignment
+        const leafAnalysisResult = document.getElementById('leafAnalysisResult');
+
+        const humidityInput = document.getElementById('humidity');
+        const temperatureInput = document.getElementById('temperature');
+        const soilMoistureInput = document.getElementById('soilMoisture');
+        // Removed analyzeSensorButton from JS references as the button is removed
+        const sensorAnalysisResult = document.getElementById('sensorAnalysisResult');
+        const overallHealthResult = document.getElementById('overallHealthResult');
+        const pumpStatusDisplay = document.getElementById('pumpStatusDisplay'); // Get reference to pump status display element
+
+        let stream; // To hold the camera stream
+        let model; // To hold the loaded Teachable Machine model
+        let maxPredictions; // To hold the number of classes from the model
+        let classLabels; // To hold the class labels from the Teachable Machine model metadata
+
+        // --- Camera and Image Capture Functions ---
+
+        /**
+         * Initializes the webcam to stream video to the webcamVideo element.
+         */
+        async function initCamera() {
+            try {
+                // Request access to the user's camera
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); // Prefer rear camera
+                webcamVideo.srcObject = stream;
+                cameraStatus.textContent = ''; // Clear any previous error messages
+                webcamVideo.style.display = 'block'; // Show video feed
+                capturedImage.style.display = 'none'; // Hide captured image initially
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                cameraStatus.textContent = "Error: Could not access camera. Please ensure camera permissions are granted.";
+                webcamVideo.style.display = 'none'; // Hide video feed if error
+                captureButton.disabled = true; // Disable capture button if no camera
+            }
+        }
+
+        /**
+         * Captures a single frame from the webcam video and displays it.
+         */
+        function captureImage() {
+            if (!stream) {
+                cameraStatus.textContent = "Camera not active. Please enable camera access.";
+                return;
+            }
+
+            // Set canvas dimensions to match video dimensions
+            imageCanvas.width = webcamVideo.videoWidth;
+            imageCanvas.height = webcamVideo.videoHeight;
+
+            // Draw the current video frame onto the canvas
+            const context = imageCanvas.getContext('2d');
+            context.drawImage(webcamVideo, 0, 0, imageCanvas.width, imageCanvas.height);
+
+            // Get the image data from the canvas as a Data URL
+            const imageDataURL = imageCanvas.toDataURL('image/png');
+
+            // Display the captured image
+            capturedImage.src = imageDataURL;
+            capturedImage.style.display = 'block'; // Show captured image
+            webcamVideo.style.display = 'none'; // Hide video feed after capture
+
+            // Stop the camera stream to save resources
+            stream.getTracks().forEach(track => track.stop());
+            stream = null; // Clear the stream variable
+        }
+
+        // --- Teachable Machine ML Model Integration ---
+
+        // URL for your Teachable Machine model - now pointing to the CDN URL again for reliability
+        const URL = "https://teachablemachine.withgoogle.com/models/DQjZ3_KaK/";
+
+        /**
+         * Loads the Teachable Machine model.
+         */
+        async function loadModel() {
+            try {
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
+
+                // Using tmImage.load() which is designed for Teachable Machine models
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+                classLabels = model.getClassLabels(); // Get class labels from the model metadata
+
+                console.log("Teachable Machine model loaded successfully!");
+                console.log("Model classes:", classLabels);
+
+            } catch (error) {
+                console.error("Error loading Teachable Machine model:", error);
+                leafAnalysisResult.textContent = "Error loading ML model. Check console for details. Ensure your model URL is correct and publicly accessible.";
+                leafAnalysisResult.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Runs the captured image through the loaded ML model for prediction.
+         */
+        async function analyzeLeafImage() {
+            if (!model) {
+                leafAnalysisResult.textContent = "ML Model not loaded. Cannot analyze leaf.";
+                leafAnalysisResult.classList.remove('hidden');
+                return;
+            }
+            if (capturedImage.src.includes('placehold.co')) {
+                leafAnalysisResult.textContent = "Please capture an image first before analyzing.";
+                leafAnalysisResult.classList.remove('hidden');
+                return;
+            }
+
+            leafAnalysisResult.textContent = "Analyzing leaf image...";
+            leafAnalysisResult.classList.remove('hidden');
+
+            try {
+                // Predict using the tmImage model's predict method
+                // The predict method handles preprocessing (resizing to 224x224 and normalization)
+                const prediction = await model.predict(capturedImage);
+
+                // --- MODIFICATION START ---
+                let resultsHtml = "Leaf Health Analysis:<br>"; // Use <br> for new lines in HTML
+
+                // Iterate through all predictions
+                if (classLabels && classLabels.length > 0) {
+                    // Sort predictions by probability (optional, but makes output clearer)
+                    const sortedPredictions = prediction.map((p, i) => ({
+                        label: classLabels[i],
+                        probability: p.probability
+                    })).sort((a, b) => b.probability - a.probability); // Sort descending
+
+                    for (let i = 0; i < sortedPredictions.length; i++) {
+                        const label = sortedPredictions[i].label;
+                        const probability = (sortedPredictions[i].probability * 100).toFixed(2);
+                        resultsHtml += `<strong>${label}:</strong> ${probability}%<br>`;
+                    }
+                } else {
+                    resultsHtml += "Analysis complete, but class labels not loaded. Raw probabilities:<br>";
+                    prediction.forEach((p, i) => {
+                        resultsHtml += `Class ${i}: ${(p.probability * 100).toFixed(2)}%<br>`;
+                    });
+                }
+
+                leafAnalysisResult.innerHTML = resultsHtml; // Use innerHTML to render <br>
+                // --- MODIFICATION END ---
+
+            } catch (error) {
+                console.error("Error during leaf image analysis:", error);
+                leafAnalysisResult.textContent = "Error analyzing leaf. Check console for details.";
+            }
+        }
+
+        // --- NEW/MODIFIED JAVASCRIPT FOR FETCHING SENSOR DATA FROM THINGSPEAK ---
+
+        // !!! IMPORTANT: Your actual ThingSpeak Channel ID !!!
+        const THINGSPEAK_CHANNEL_ID = 3014588; // Replaced with your exact Channel ID
+
+        /**
+         * Fetches sensor data from ThingSpeak and updates the input fields.
+         */
+        async function fetchSensorData() {
+            try {
+                // ThingSpeak Public Channel Feed API URL
+                // Reads the last entry from the specified fields
+                const response = await fetch(`https://api.thingspeak.com/channels/${THINGSPEAK_CHANNEL_ID}/feeds.json?results=1`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // ThingSpeak's JSON structure for feeds.json?results=1
+                // The actual sensor data is in data.feeds[0]
+                if (data.feeds && data.feeds.length > 0) {
+                    const latestFeed = data.feeds[0];
+
+                    // Make sure the field names match what you set in ThingSpeak
+                    // field1 for humidity, field2 for temperature, field3 for soil moisture, field4 for pumpStatus
+                    const humidity = parseFloat(latestFeed.field1);
+                    const temperature = parseFloat(latestFeed.field2);
+                    const soilMoisture = parseFloat(latestFeed.field3);
+                    const pumpStatus = parseInt(latestFeed.field4); // <-- NEW: Get pump status (Field 4)
+
+                    if (!isNaN(humidity)) humidityInput.value = humidity.toFixed(1);
+                    if (!isNaN(temperature)) temperatureInput.value = temperature.toFixed(1);
+                    if (!isNaN(soilMoisture)) soilMoistureInput.value = soilMoisture;
+
+                    // Update Pump Status Display
+                    if (!isNaN(pumpStatus)) {
+                        pumpStatusDisplay.textContent = `Pump Status: ${pumpStatus === 1 ? 'ON' : 'OFF'}`; // Display "ON" for 1, "OFF" for 0
+                        pumpStatusDisplay.classList.remove('hidden');
+                        // Optional: change color based on status (requires adding tailwind classes to result-box)
+                        if (pumpStatus === 1) {
+                            pumpStatusDisplay.classList.add('bg-green-100', 'border-green-300', 'text-green-800');
+                            pumpStatusDisplay.classList.remove('bg-red-100', 'border-red-300', 'text-red-800');
+                        } else {
+                            pumpStatusDisplay.classList.add('bg-red-100', 'border-red-300', 'text-red-800');
+                            pumpStatusDisplay.classList.remove('bg-green-100', 'border-green-300', 'text-green-800');
+                        }
+                    } else {
+                        pumpStatusDisplay.textContent = `Pump Status: N/A`;
+                        pumpStatusDisplay.classList.remove('hidden');
+                    }
+
+
+                    analyzeSensorData();
+                    determineOverallHealth();
+                } else {
+                    console.warn("No data feeds found on ThingSpeak channel.");
+                    sensorAnalysisResult.textContent = `Error: No sensor data yet or channel is empty.`;
+                    sensorAnalysisResult.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error("Error fetching sensor data from ThingSpeak:", error);
+                sensorAnalysisResult.textContent = `Error: Could not get live sensor data from ThingSpeak. Check console.`;
+                sensorAnalysisResult.classList.remove('hidden');
+            }
+        }
+
+        // --- Your existing analyzeSensorData function (no changes needed here) ---
+        function analyzeSensorData() {
+            const humidity = parseFloat(humidityInput.value);
+            const temperature = parseFloat(temperatureInput.value);
+            const soilMoisture = parseFloat(soilMoistureInput.value);
+
+            let soilHealthMessage = "";
+            let isValid = true;
+
+            if (isNaN(humidity) || humidity < 0 || humidity > 100) {
+                soilHealthMessage += "Invalid Humidity. ";
+                isValid = false;
+            }
+            if (isNaN(temperature)) {
+                soilHealthMessage += "Invalid Temperature. ";
+                isValid = false;
+            }
+            if (isNaN(soilMoisture) || soilMoisture < 0 || soilMoisture > 100) {
+                soilHealthMessage += "Invalid Soil Moisture. ";
+                isValid = false;
+            }
+
+            if (!isValid) {
+                sensorAnalysisResult.textContent = `Error: ${soilHealthMessage.trim()}`;
+                sensorAnalysisResult.classList.remove('hidden');
+                return;
+            }
+
+            if (soilMoisture < 30) {
+                soilHealthMessage = "Soil is very dry. Plant needs water.";
+            } else if (soilMoisture >= 30 && soilMoisture < 60) {
+                soilHealthMessage = "Soil moisture is adequate.";
+            } else {
+                soilHealthMessage = "Soil is too wet. Risk of root rot.";
+            }
+
+            if (temperature < 10 || temperature > 35) {
+                soilHealthMessage += ` Temperature (${temperature}°C) is outside optimal range.`;
+            }
+
+            if (humidity < 40 || humidity > 80) {
+                soilHealthMessage += ` Humidity (${humidity}%) is outside optimal range.`;
+            }
+
+            sensorAnalysisResult.textContent = `Soil Health: ${soilHealthMessage}`;
+            sensorAnalysisResult.classList.remove('hidden');
+        }
+
+        // --- Your existing determineOverallHealth function (no changes needed here) ---
+        function determineOverallHealth() {
+            const leafHealthText = leafAnalysisResult.textContent;
+            const soilHealthText = sensorAnalysisResult.textContent;
+
+            if (leafHealthText.includes("Not analyzed yet") || leafHealthText.includes("Error") ||
+                soilHealthText.includes("Not analyzed yet") || soilHealthText.includes("Error")) {
+                overallHealthResult.textContent = "Overall Plant Health: Cannot determine. Complete both analyses first.";
+                overallHealthResult.classList.remove('hidden');
+                return;
+            }
+
+            let overallHealth = "Good";
+
+            if (leafHealthText.includes("Diseased")) {
+                overallHealth = "Poor (Leaf disease detected)";
+            } else if (soilHealthText.includes("very dry") || soilHealthText.includes("too wet") || soilHealthText.includes("outside optimal range")) {
+                overallHealth = "Fair (Environmental stress)";
+            }
+
+            overallHealthResult.textContent = `Overall Plant Health: ${overallHealth}`;
+            overallHealthResult.classList.remove('hidden');
+        }
+
+        // --- Event Listeners ---
+        window.onload = () => {
+            initCamera();
+            loadModel();
+            setInterval(fetchSensorData, 60000); // Fetch data every 60 seconds (60000 milliseconds)
+        };
+
+        captureButton.addEventListener('click', captureImage);
+        analyzeImageButton.addEventListener('click', analyzeLeafImage);
+
+        analyzeSensorButton.addEventListener('click', () => {
+            analyzeSensorData();
+            determineOverallHealth();
+        });
+
+        capturedImage.addEventListener('click', () => {
+            if (!stream) {
+                initCamera();
+            }
+        });
+
+    </script>
+</body>
+</html>
