@@ -213,7 +213,13 @@
                 </div>
             </div>
             <div class="flex justify-center">
-                </div>
+                <button id="analyzeSensorButton" class="btn btn-primary w-full md:w-auto mt-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-9a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1zm0 4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    Analyze Sensor Data
+                </button>
+            </div>
             <div id="sensorAnalysisResult" class="result-box mt-6 hidden">
                 Soil Health: Not analyzed yet.
             </div>
@@ -249,6 +255,7 @@
         const humidityInput = document.getElementById('humidity');
         const temperatureInput = document.getElementById('temperature');
         const soilMoistureInput = document.getElementById('soilMoisture');
+        const analyzeSensorButton = document.getElementById('analyzeSensorButton'); // <-- Re-added reference
         const sensorAnalysisResult = document.getElementById('sensorAnalysisResult');
         const overallHealthResult = document.getElementById('overallHealthResult');
         const pumpStatusDisplay = document.getElementById('pumpStatusDisplay'); // Get reference to pump status display element
